@@ -4,7 +4,7 @@ const generateToken = require('../utils/generateToken');
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
@@ -14,11 +14,12 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Always register as customer – providers are created only by the admin
     const newUser = await User.create({
       name,
       email,
       password: hashedPassword,
-      role:  'customer'
+      role: 'customer',
     });
 
     const token = generateToken(newUser);
@@ -27,7 +28,7 @@ exports.register = async (req, res) => {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
-      token
+      token,
     });
   } catch (error) {
     console.error(error);
@@ -44,6 +45,14 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    // 🔒 Check if the user is currently suspended
+    const suspended = await User.isSuspended(user.id);
+    if (suspended) {
+      return res.status(403).json({
+        message: 'Your account has been suspended. Please contact support.',
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -55,7 +64,7 @@ exports.login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      token
+      token,
     });
   } catch (error) {
     console.error(error);
@@ -64,6 +73,6 @@ exports.login = async (req, res) => {
 };
 
 exports.getProfile = async (req, res) => {
-  const user = req.user; // from authMiddleware
-  res.json(user);
+  // req.user is already attached by the protect middleware
+  res.json(req.user);
 };

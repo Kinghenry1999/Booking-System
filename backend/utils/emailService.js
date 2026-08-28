@@ -4,7 +4,7 @@ require('dotenv').config();
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
-  secure: false,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -43,7 +43,7 @@ const wrapEmail = (content) => `
           <tr>
             <td style="background: linear-gradient(135deg, #0d6efd, #6610f2); border-radius: 12px 12px 0 0; padding: 30px; text-align: center;">
               <h1 style="color:#ffffff; margin:0; font-size:28px; font-weight:bold;">Kinghenry Writes</h1>
-              <p style="color:#e0e7ff; margin:10px 0 0; font-size:16px;">Your trusted booking platform</p>
+              <p style="color:#e0e7ff; margin:10px 0 0; font-size:16px;">Professional writing & virtual assistant services</p>
             </td>
           </tr>
 
@@ -81,9 +81,7 @@ const formatDate = (dateString) =>
 const formatTime = (dateString) =>
   new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-// ---------- Styled Templates ----------
-
-// Customer Booking Confirmation
+// ---------- Booking Templates (unchanged) ----------
 const bookingConfirmationCustomer = (booking) => {
   const content = `
     <h2 style="color:#0d6efd; margin-top:0;">Booking Confirmed ✅</h2>
@@ -117,7 +115,6 @@ const bookingConfirmationCustomer = (booking) => {
   return wrapEmail(content);
 };
 
-// Provider New Booking Notification
 const bookingConfirmationProvider = (booking) => {
   const content = `
     <h2 style="color:#0d6efd; margin-top:0;">New Booking 🔔</h2>
@@ -147,7 +144,6 @@ const bookingConfirmationProvider = (booking) => {
   return wrapEmail(content);
 };
 
-// Customer Cancellation
 const bookingCancellationCustomer = (booking) => {
   const content = `
     <h2 style="color:#dc3545; margin-top:0;">Booking Cancelled ❌</h2>
@@ -159,7 +155,6 @@ const bookingCancellationCustomer = (booking) => {
   return wrapEmail(content);
 };
 
-// Provider Cancellation
 const bookingCancellationProvider = (booking) => {
   const content = `
     <h2 style="color:#dc3545; margin-top:0;">Booking Cancelled ❌</h2>
@@ -171,14 +166,101 @@ const bookingCancellationProvider = (booking) => {
   return wrapEmail(content);
 };
 
-// Customer Completion
 const bookingCompletedCustomer = (booking) => {
   const content = `
     <h2 style="color:#28a745; margin-top:0;">Session Completed 🎉</h2>
     <p style="font-size:16px; line-height:1.6; color:#333333;">
       Your session <strong>${booking.service_name}</strong> with ${booking.provider_name} has been marked as completed.
     </p>
-    <p style="font-size:14px; color:#666666;">Thank you for trusting SwiftBook! We’d love to hear your feedback.</p>
+    <p style="font-size:14px; color:#666666;">Thank you for trusting Kinghenry Writes! We’d love to hear your feedback.</p>
+  `;
+  return wrapEmail(content);
+};
+
+// ---------- Provider Welcome Template ----------
+const providerWelcome = (provider) => {
+  const content = `
+    <h2 style="color:#0d6efd; margin-top:0;">Welcome to the Team, ${provider.name}! 🎉</h2>
+    <p style="font-size:16px; line-height:1.6; color:#333333;">
+      You have been added as a <strong>Service Provider</strong> on the Kinghenry Writes platform.
+    </p>
+    
+    <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color:#f8f9fa; border-radius:8px; margin: 20px 0;">
+      <tr>
+        <td style="font-weight:bold; color:#555555; width:150px;">Your Email (Username)</td>
+        <td style="color:#333333;">${provider.email}</td>
+      </tr>
+      <tr>
+        <td style="font-weight:bold; color:#555555;">Temporary Password</td>
+        <td style="color:#333333;">${provider.password}</td>
+      </tr>
+      <tr>
+        <td style="font-weight:bold; color:#555555;">Role</td>
+        <td style="color:#333333;">Provider</td>
+      </tr>
+    </table>
+
+    <p style="font-size:16px; line-height:1.6; color:#333333;"><strong>Your responsibilities:</strong></p>
+    <ul style="padding-left:20px; color:#333333; font-size:14px;">
+      <li>Log in to the platform and set your own availability.</li>
+      <li>View and manage bookings assigned to you.</li>
+      <li>Deliver services (writing, VA tasks) and mark them as completed.</li>
+    </ul>
+
+    <p style="font-size:14px; color:#666666;">
+      Please change your password after your first login.
+    </p>
+    <p style="font-size:14px; color:#666666;">
+      <a href="${process.env.CLIENT_URL || '#'}/login" style="color:#0d6efd; font-weight:bold;">Log in to Kinghenry Writes</a>
+    </p>
+  `;
+  return wrapEmail(content);
+};
+
+// ---------- Provider Suspension Template ----------
+const providerSuspended = (provider, until) => {
+  const suspensionInfo = until
+    ? `until ${new Date(until).toLocaleDateString()}`
+    : `indefinitely`;
+  const content = `
+    <h2 style="color:#dc3545; margin-top:0;">Account Suspended ⚠️</h2>
+    <p style="font-size:16px; line-height:1.6; color:#333333;">
+      Your provider account has been suspended <strong>${suspensionInfo}</strong>.
+    </p>
+    <p style="font-size:14px; color:#666666;">
+      During this period you won't be able to log in or receive new bookings.
+      If you believe this is an error, please contact the admin.
+    </p>
+  `;
+  return wrapEmail(content);
+};
+
+// ---------- Provider Deletion (Deactivation) Template ----------
+const providerDeleted = (provider) => {
+  const content = `
+    <h2 style="color:#dc3545; margin-top:0;">Account Deactivated ❌</h2>
+    <p style="font-size:16px; line-height:1.6; color:#333333;">
+      Your provider account has been deactivated by the admin.
+    </p>
+    <p style="font-size:14px; color:#666666;">
+      You will no longer be able to access the platform. If you think this is a mistake,
+      please contact support.
+    </p>
+  `;
+  return wrapEmail(content);
+};
+
+// ---------- Provider Reactivation (Restore / Unsuspend) Template ----------
+const providerReactivated = (provider) => {
+  const content = `
+    <h2 style="color:#28a745; margin-top:0;">Account Reactivated ✅</h2>
+    <p style="font-size:16px; line-height:1.6; color:#333333;">
+      Good news, ${provider.name}! Your provider account has been reactivated.
+    </p>
+    <p style="font-size:14px; color:#666666;">
+      You can now log in and resume your bookings.
+      <a href="${process.env.CLIENT_URL || '#'}/login" style="color:#0d6efd;">Log in here</a>
+    </p>
   `;
   return wrapEmail(content);
 };
@@ -190,4 +272,8 @@ module.exports = {
   bookingCancellationCustomer,
   bookingCancellationProvider,
   bookingCompletedCustomer,
+  providerWelcome,
+  providerSuspended,
+  providerDeleted,
+  providerReactivated,
 };

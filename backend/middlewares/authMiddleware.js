@@ -13,9 +13,22 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id);
+    // Fetch user from DB (only active users are returned by findById)
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found or account deactivated' });
+    }
+
+    // Check if the user is currently suspended
+    const suspended = await User.isSuspended(user.id);
+    if (suspended) {
+      return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
+    console.error(error);
     res.status(401).json({ message: 'Not authorized, token failed' });
   }
 };
